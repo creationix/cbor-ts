@@ -38,13 +38,17 @@ for (let i = 0; i < 100; i++) {
 }
 
 /*
-cbor-old
+
+old version with `parts` array:
 
 [162.17ms] huge
 1550003
 [63.84ms] huge
 
-[139.58ms] huge
+new version with `sharedBuffer`:
+
+[124.50ms] huge
 1550003
-[64.71ms] huge
+[64.70ms] huge
+
 */
