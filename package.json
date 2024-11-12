@@ -1,11 +1,13 @@
 {
-  "name": "cbor-ts",
+  "name": "@creationix/cbor-ts",
   "version": "0.0.1",
   "description": "A compact implementation of basic CBOR in TS",
   "author": "Tim Caswell <tim@creationix.com>",
   "license": "ISC",
-  "types": "./dist/cbor.d.ts",
   "module": "dist/cbor.js",
+  "types": "./dist/cbor.d.ts",
+  "type": "module",
+  "repository": "https://github.com/creationix/cbor-ts",
   "scripts": {
     "test": "bun run src/test-cbor.ts"
   },
