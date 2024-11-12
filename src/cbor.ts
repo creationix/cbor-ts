@@ -174,46 +174,39 @@ export function decode(data: Uint8Array): unknown {
 
   function parseValue() {
     const byte = data[offset++]
+    const start = offset
     const major = byte >> 5
-    const minor = byte & 0b00011111
-    if (minor < 24) {
-      return decodeValue(major, minor)
-    }
+    let minor: number = byte & 0b00011111
     if (minor === 24) {
-      return decodeValue(major, data[offset++])
-    }
-    if (minor === 25) {
-      const value = new DataView(data.buffer, offset, 2).getUint16(0)
+      minor = data[offset++]
+    } else if (minor === 25) {
+      minor = new DataView(data.buffer, offset, 2).getUint16(0)
       offset += 2
-      return decodeValue(major, value)
-    }
-    if (minor === 26) {
-      const value = new DataView(data.buffer, offset, 4).getUint32(0)
+    } else if (minor === 26) {
+      minor = new DataView(data.buffer, offset, 4).getUint32(0)
       offset += 4
-      return decodeValue(major, value)
-    }
-    if (minor === 27) {
+    } else if (minor === 27) {
       const value = new DataView(data.buffer, offset, 8).getBigUint64(0)
       offset += 8
-      return decodeValue(major, value)
-    }
-  }
 
-  function decodeValue(major: number, minor: number | bigint) {
-    if (typeof minor === 'bigint') {
-      if (Number.isSafeInteger(Number(minor))) {
-        minor = Number(minor)
+      if (!Number.isSafeInteger(Number(value))) {
+        if (major === UNSIGNED_INTEGER) {
+          return value
+        }
+        if (major === NEGATIVE_INTEGER) {
+          return -1n - value
+        }
+        if (major === FLOAT_OR_PRIMITIVE) {
+          const buf = new Uint8Array(8)
+          new DataView(buf.buffer).setBigUint64(0, value)
+          return new DataView(buf.buffer).getFloat64(0)
+        }
+        throw new Error('Invalid major type for bigint')
       }
+
+      minor = Number(value)
     }
-    if (typeof minor === 'bigint') {
-      if (major === UNSIGNED_INTEGER) {
-        return minor
-      }
-      if (major === NEGATIVE_INTEGER) {
-        return -1n - minor
-      }
-      throw new Error('Invalid major type for bigint')
-    }
+
     switch (major) {
       case UNSIGNED_INTEGER:
         return minor
@@ -251,11 +244,43 @@ export function decode(data: Uint8Array): unknown {
             return null
           case UNDEFINED:
             return undefined
-          default:
-            return new DataView(data.buffer, offset - 1, 8).getFloat64(0)
+          default: {
+            const size = offset - start
+            // Double Precision
+            if (size === 8) {
+              return new DataView(data.buffer, start, 8).getFloat64(0)
+            }
+            // Single Precision
+            if (size === 4) {
+              return new DataView(data.buffer, start, 4).getFloat32(0)
+            }
+            // Half Precision
+            if (size === 2) {
+              return decodeHalfPrecision(new DataView(data.buffer, start, 2).getUint16(0))
+            }
+            throw new Error(`Invalid size for float: ${size}`)
+          }
         }
       default:
         throw new Error(`Invalid major type: ${major}`)
     }
   }
+}
+
+function decodeHalfPrecision(half: number) {
+  const exp = (half >> 10) & 0x1f
+  const mant = half & 0x3ff
+  let val: number
+  if (exp === 0) {
+    val = ldexp(mant, -24)
+  } else if (exp !== 31) {
+    val = ldexp(mant + 1024, exp - 25)
+  } else {
+    val = mant === 0 ? Infinity : NaN
+  }
+  return half & 0x8000 ? -val : val
+}
+
+function ldexp(mant: number, exp: number) {
+  return mant * 2 ** exp
 }
