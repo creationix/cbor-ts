@@ -135,6 +135,7 @@ for (const [input, expected] of decodeTests) {
 if (failed > 0) {
   throw new Error(`${failed} tests failed!`)
 }
+console.log('All tests passed!')
 
 // Helper function to create byte strings from hex strings.
 // Make sure to not actually interpolate any variables into the template string.

@@ -2,6 +2,8 @@
 
 A compact implementation of basic CBOR in TS
 
+[![Unit Tests](https://github.com/creationix/cbor-ts/actions/workflows/test.yaml/badge.svg?event=push)](https://github.com/creationix/cbor-ts/actions/workflows/test.yaml)
+
 ## CBOR Spec
 
 https://datatracker.ietf.org/doc/html/rfc7049
