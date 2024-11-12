@@ -1,6 +1,6 @@
 {
   "name": "@creationix/cbor-ts",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "A compact implementation of basic CBOR in TS",
   "author": "Tim Caswell <tim@creationix.com>",
   "license": "ISC",

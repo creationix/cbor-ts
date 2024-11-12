@@ -111,9 +111,8 @@ let failed = 0
 console.log('\nRunning encoder tests:\n')
 for (const [input, expected] of encodeTests) {
   const actual = Buffer.from(encode(input)).toString('hex')
-  console.log({ input, expect: expected, actual })
   if (actual !== expected) {
-    console.log('Failed!')
+    console.log({ input, expect: expected, actual })
     failed++
   }
 }
