@@ -13,20 +13,15 @@ const TRUE = 21
 const NULL = 22
 const UNDEFINED = 23
 
+const sharedBuffer = new Uint8Array(1024 * 1024 * 4)
 export function encode(rootValue: unknown): Uint8Array {
-  const parts: Uint8Array[] = []
+  let buffer = sharedBuffer
   let size = 0
 
   encodeAny(rootValue)
 
-  // Combine the parts and return as a single buffer.
-  const buffer = new Uint8Array(size)
-  let offset = 0
-  for (let i = 0, l = parts.length; i < l; i++) {
-    buffer.set(parts[i], offset)
-    offset += parts[i].byteLength
-  }
-  return buffer
+  // Returned a cleaned up buffer
+  return buffer === sharedBuffer ? buffer.slice(0, size) : buffer.subarray(0, size)
 
   function encodeAny(value: unknown) {
     if (typeof value === 'string') {
@@ -63,15 +58,13 @@ export function encode(rootValue: unknown): Uint8Array {
     const utf8 = new TextEncoder().encode(str.normalize('NFC'))
     const len = utf8.byteLength
     pushHeader(TEXT_STRING, len)
-    parts.push(utf8)
-    size += len
+    pushBytes(utf8)
   }
 
   function encodeBytes(bytes: Uint8Array) {
     const len = bytes.byteLength
     pushHeader(BYTE_STRING, len)
-    parts.push(bytes)
-    size += len
+    pushBytes(bytes)
   }
 
   function encodeNumber(num: number) {
@@ -86,8 +79,7 @@ export function encode(rootValue: unknown): Uint8Array {
     const part = new Uint8Array(9)
     part[0] = (FLOAT_OR_PRIMITIVE << 5) | 27
     new DataView(part.buffer).setFloat64(1, num)
-    parts.push(part)
-    size += 9
+    pushBytes(part)
   }
 
   function encodeBigInt(num: bigint) {
@@ -99,16 +91,14 @@ export function encode(rootValue: unknown): Uint8Array {
         const part = new Uint8Array(9)
         part[0] = (UNSIGNED_INTEGER << 5) | 27
         new DataView(part.buffer).setBigUint64(1, num)
-        parts.push(part)
-        size += 9
+        pushBytes(part)
         return
       }
     } else if (num >= -0x10000000000000000n) {
       const part = new Uint8Array(9)
       part[0] = (NEGATIVE_INTEGER << 5) | 27
       new DataView(part.buffer).setBigUint64(1, -1n - num)
-      parts.push(part)
-      size += 9
+      pushBytes(part)
       return
     }
     throw new Error('Bigint outside i65 range')
@@ -135,36 +125,49 @@ export function encode(rootValue: unknown): Uint8Array {
 
   function pushHeader(major: number, minor: number) {
     if (minor < 24) {
-      parts.push(new Uint8Array([(major << 5) | minor]))
-      size += 1
+      ensure(1)
+      buffer[size++] = (major << 5) | minor
       return
     }
     if (minor < 0x100) {
-      parts.push(new Uint8Array([(major << 5) | 24, minor]))
-      size += 2
+      ensure(2)
+      buffer[size++] = (major << 5) | 24
+      buffer[size++] = minor
       return
     }
     if (minor < 0x10000) {
-      const part = new Uint8Array(3)
-      part[0] = (major << 5) | 25
-      new DataView(part.buffer).setUint16(1, minor)
-      parts.push(part)
-      size += 3
+      ensure(3)
+      buffer[size++] = (major << 5) | 25
+      new DataView(buffer.buffer).setUint16(size, minor)
+      size += 2
       return
     }
     if (minor < 0x100000000) {
-      const part = new Uint8Array(5)
-      part[0] = (major << 5) | 26
-      new DataView(part.buffer).setUint32(1, minor)
-      parts.push(part)
-      size += 5
+      ensure(5)
+      buffer[size++] = (major << 5) | 26
+      new DataView(buffer.buffer).setUint32(size, minor)
+      size += 4
       return
     }
-    const part = new Uint8Array(9)
-    part[0] = (major << 5) | 27
-    new DataView(part.buffer).setBigUint64(1, BigInt(minor))
-    parts.push(part)
-    size += 9
+    ensure(9)
+    buffer[size++] = (major << 5) | 27
+    new DataView(buffer.buffer).setBigUint64(size, BigInt(minor))
+    size += 8
+  }
+
+  function ensure(needed: number) {
+    if (size + needed > buffer.byteLength) {
+      const newBuffer = new Uint8Array(Math.max(size + needed, buffer.byteLength * 2))
+      newBuffer.set(buffer)
+      buffer = newBuffer
+    }
+  }
+
+  function pushBytes(bytes: Uint8Array) {
+    const len = bytes.byteLength
+    ensure(len)
+    buffer.set(bytes, size)
+    size += len
   }
 }
 
