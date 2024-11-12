@@ -13,7 +13,9 @@ const TRUE = 21
 const NULL = 22
 const UNDEFINED = 23
 
+const sharedEncoder = new TextEncoder()
 const sharedBuffer = new Uint8Array(1024 * 1024 * 4)
+
 export function encode(rootValue: unknown): Uint8Array {
   let buffer = sharedBuffer
   let size = 0
@@ -55,7 +57,7 @@ export function encode(rootValue: unknown): Uint8Array {
   }
 
   function encodeString(str: string) {
-    const utf8 = new TextEncoder().encode(str.normalize('NFC'))
+    const utf8 = sharedEncoder.encode(str)
     const len = utf8.byteLength
     pushHeader(TEXT_STRING, len)
     pushBytes(utf8)

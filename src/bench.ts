@@ -47,8 +47,8 @@ old version with `parts` array:
 
 new version with `sharedBuffer`:
 
-[124.50ms] huge
+[57.27ms] huge
 1550003
-[64.70ms] huge
+[63.75ms] huge
 
 */
