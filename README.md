@@ -21,7 +21,7 @@ This only implements a commonly used subset of the spec to keep code size as sma
 Simply use the `encode` / `decode` functions.
 
 ```js
-import { encode, decode } from "cbor-ts"
+import { encode, decode } from "@creationix/cbor-ts"
 
 const encoded = encode({ hello: "World" })
 // `encoded` is a Uint8Array
