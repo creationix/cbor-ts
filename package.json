@@ -1,0 +1,15 @@
+{
+  "name": "cbor-ts",
+  "version": "0.0.1",
+  "description": "A compact implementation of basic CBOR in TS",
+  "author": "Tim Caswell <tim@creationix.com>",
+  "license": "ISC",
+  "types": "./dist/cbor.d.ts",
+  "module": "dist/cbor.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "1.9.4"
+  }
+}
