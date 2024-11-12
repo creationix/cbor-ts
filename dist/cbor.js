@@ -1,7 +1,3 @@
-// This only implements a commonly used subset of the spec to keep code size as small as possible.
-//
-// https://datatracker.ietf.org/doc/html/rfc7049
-// CBOR major types:
 const UNSIGNED_INTEGER = 0;
 const NEGATIVE_INTEGER = 1;
 const BYTE_STRING = 2;
@@ -9,7 +5,6 @@ const TEXT_STRING = 3;
 const ARRAY = 4;
 const MAP = 5;
 const FLOAT_OR_PRIMITIVE = 7;
-// CBOR primitive values:
 const FALSE = 20;
 const TRUE = 21;
 const NULL = 22;
@@ -18,7 +13,6 @@ export function encode(rootValue) {
     const parts = [];
     let size = 0;
     encodeAny(rootValue);
-    // Combine the parts and return as a single buffer.
     const buffer = new Uint8Array(size);
     let offset = 0;
     for (let i = 0, l = parts.length; i < l; i++) {
@@ -26,39 +20,6 @@ export function encode(rootValue) {
         offset += parts[i].byteLength;
     }
     return buffer;
-    function pushHeader(major, minor) {
-        if (minor < 24) {
-            parts.push(new Uint8Array([(major << 5) | minor]));
-            size += 1;
-            return;
-        }
-        if (minor < 0x100) {
-            parts.push(new Uint8Array([(major << 5) | 24, minor]));
-            size += 2;
-            return;
-        }
-        if (minor < 0x10000) {
-            const part = new Uint8Array(3);
-            part[0] = (major << 5) | 25;
-            new DataView(part.buffer).setUint16(1, minor);
-            parts.push(part);
-            size += 3;
-            return;
-        }
-        if (minor < 0x100000000) {
-            const part = new Uint8Array(5);
-            part[0] = (major << 5) | 26;
-            new DataView(part.buffer).setUint32(1, minor);
-            parts.push(part);
-            size += 5;
-            return;
-        }
-        const part = new Uint8Array(9);
-        part[0] = (major << 5) | 27;
-        new DataView(part.buffer).setBigUint64(1, BigInt(minor));
-        parts.push(part);
-        size += 9;
-    }
     function encodeAny(value) {
         if (typeof value === 'string') {
             return encodeString(value);
@@ -88,6 +49,19 @@ export function encode(rootValue) {
             return encodeObject(value);
         }
         throw new Error(`Unsupported value type: ${typeof value}`);
+    }
+    function encodeString(str) {
+        const utf8 = new TextEncoder().encode(str.normalize('NFC'));
+        const len = utf8.byteLength;
+        pushHeader(TEXT_STRING, len);
+        parts.push(utf8);
+        size += len;
+    }
+    function encodeBytes(bytes) {
+        const len = bytes.byteLength;
+        pushHeader(BYTE_STRING, len);
+        parts.push(bytes);
+        size += len;
     }
     function encodeNumber(num) {
         if (Number.isSafeInteger(num)) {
@@ -129,19 +103,6 @@ export function encode(rootValue) {
         }
         throw new Error('Bigint outside i65 range');
     }
-    function encodeString(str) {
-        const utf8 = new TextEncoder().encode(str);
-        const len = utf8.byteLength;
-        pushHeader(TEXT_STRING, len);
-        parts.push(utf8);
-        size += len;
-    }
-    function encodeBytes(bytes) {
-        const len = bytes.byteLength;
-        pushHeader(BYTE_STRING, len);
-        parts.push(bytes);
-        size += len;
-    }
     function encodeArray(arr) {
         const len = arr.length;
         pushHeader(ARRAY, len);
@@ -159,7 +120,124 @@ export function encode(rootValue) {
             encodeAny(value);
         }
     }
+    function pushHeader(major, minor) {
+        if (minor < 24) {
+            parts.push(new Uint8Array([(major << 5) | minor]));
+            size += 1;
+            return;
+        }
+        if (minor < 0x100) {
+            parts.push(new Uint8Array([(major << 5) | 24, minor]));
+            size += 2;
+            return;
+        }
+        if (minor < 0x10000) {
+            const part = new Uint8Array(3);
+            part[0] = (major << 5) | 25;
+            new DataView(part.buffer).setUint16(1, minor);
+            parts.push(part);
+            size += 3;
+            return;
+        }
+        if (minor < 0x100000000) {
+            const part = new Uint8Array(5);
+            part[0] = (major << 5) | 26;
+            new DataView(part.buffer).setUint32(1, minor);
+            parts.push(part);
+            size += 5;
+            return;
+        }
+        const part = new Uint8Array(9);
+        part[0] = (major << 5) | 27;
+        new DataView(part.buffer).setBigUint64(1, BigInt(minor));
+        parts.push(part);
+        size += 9;
+    }
 }
 export function decode(data) {
-    // TODO: Write decoder
+    let offset = 0;
+    return parseValue();
+    function parseValue() {
+        const byte = data[offset++];
+        const major = byte >> 5;
+        const minor = byte & 0b00011111;
+        if (minor < 24) {
+            return decodeValue(major, minor);
+        }
+        if (minor === 24) {
+            return decodeValue(major, data[offset++]);
+        }
+        if (minor === 25) {
+            const value = new DataView(data.buffer, offset, 2).getUint16(0);
+            offset += 2;
+            return decodeValue(major, value);
+        }
+        if (minor === 26) {
+            const value = new DataView(data.buffer, offset, 4).getUint32(0);
+            offset += 4;
+            return decodeValue(major, value);
+        }
+        if (minor === 27) {
+            const value = new DataView(data.buffer, offset, 8).getBigUint64(0);
+            offset += 8;
+            return decodeValue(major, value);
+        }
+    }
+    function decodeValue(major, minor) {
+        if (typeof minor === 'bigint') {
+            if (Number.isSafeInteger(Number(minor))) {
+                minor = Number(minor);
+            }
+        }
+        if (typeof minor === 'bigint') {
+            if (major === UNSIGNED_INTEGER) {
+                return minor;
+            }
+            if (major === NEGATIVE_INTEGER) {
+                return -1n - minor;
+            }
+            throw new Error('Invalid major type for bigint');
+        }
+        switch (major) {
+            case UNSIGNED_INTEGER:
+                return minor;
+            case NEGATIVE_INTEGER:
+                return -1 - minor;
+            case BYTE_STRING:
+                return data.subarray(offset, (offset += minor));
+            case TEXT_STRING:
+                return new TextDecoder().decode(data.subarray(offset, (offset += minor)));
+            case ARRAY: {
+                const arr = [];
+                for (let i = 0; i < minor; i++) {
+                    arr.push(parseValue());
+                }
+                return arr;
+            }
+            case MAP: {
+                const obj = {};
+                for (let i = 0; i < minor; i++) {
+                    const key = parseValue();
+                    const value = parseValue();
+                    obj[String(key)] = value;
+                }
+                return obj;
+            }
+            case FLOAT_OR_PRIMITIVE:
+                switch (minor) {
+                    case FALSE:
+                        return false;
+                    case TRUE:
+                        return true;
+                    case NULL:
+                        return null;
+                    case UNDEFINED:
+                        return undefined;
+                    default:
+                        return new DataView(data.buffer, offset - 1, 8).getFloat64(0);
+                }
+            default:
+                throw new Error(`Invalid major type: ${major}`);
+        }
+    }
 }

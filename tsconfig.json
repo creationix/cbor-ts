@@ -3,6 +3,7 @@
     "lib": ["ESNext", "DOM"],
     "target": "ESNext",
     "module": "ESNext",
+    "removeComments": true,
     "declaration": true,
     "outDir": "dist"
   },

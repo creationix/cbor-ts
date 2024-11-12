@@ -7,8 +7,9 @@
   "types": "./dist/cbor.d.ts",
   "module": "dist/cbor.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "bun run src/test-cbor.ts"
   },
+  "files": ["dist", "README.md"],
   "devDependencies": {
     "@biomejs/biome": "1.9.4"
   }

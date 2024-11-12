@@ -1,12 +1,6 @@
 import { encode, decode } from './cbor.ts'
 
-// Helper function to create byte strings from hex strings.
-// Make sure to not actually interpolate any variables into the template string.
-function hex([str]: TemplateStringsArray): Uint8Array {
-  return new Uint8Array(str.match(/.{1,2}/g)?.map((byte) => parseInt(byte, 16)))
-}
-
-const tests = [
+const encodeTests = [
   [0, '00'], // Unsigned integer
   [1, '01'], // Unsigned integer
   [10, '0a'], // Unsigned integer
@@ -49,7 +43,13 @@ const tests = [
   [{ a: 'A', b: 'B', c: 'C', d: 'D', e: 'E' }, 'a56161614161626142616361436164614461656145'], // Map
 ]
 
-for (const [input, expected] of tests) {
+for (const [input, expected] of encodeTests) {
   const actual = Buffer.from(encode(input)).toString('hex')
   console.log(actual === expected, actual)
+}
+
+// Helper function to create byte strings from hex strings.
+// Make sure to not actually interpolate any variables into the template string.
+function hex([str]: TemplateStringsArray): Uint8Array {
+  return new Uint8Array(str.match(/.{1,2}/g)?.map((byte) => parseInt(byte, 16)))
 }
