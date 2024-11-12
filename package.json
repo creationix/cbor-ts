@@ -1,6 +1,6 @@
 {
   "name": "@creationix/cbor-ts",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "keywords": ["cbor", "ts", "typescript"],
   "description": "A compact implementation of basic CBOR in TS",
   "author": "Tim Caswell <tim@creationix.com>",
