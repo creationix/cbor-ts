@@ -10,7 +10,7 @@ https://datatracker.ietf.org/doc/html/rfc7049
 
 This only implements a commonly used subset of the spec to keep code size as small as possible.
 
-- string (encoded as NFC normalized UTF-8)
+- string (encoded as UTF-8)
 - integers (safe integers and bigints within the i65 range)
 - floats (encodes as double-precision, decodes half-, single-, and double- precision)
 - primitives (`true`, `false`, `null`, `undefined`)
